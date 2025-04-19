@@ -11,7 +11,7 @@ const port = process.env.PORT || 4000;
 // ✅ Fix CORS
 const allowedOrigins = [
   "http://localhost:4000", // local dev
-  "https://crack-ai-server-zeta.vercel.app/", // update this with your deployed frontend if needed
+  "https://crack-ai-server-zeta.vercel.app", // update this with your deployed frontend if needed
 ];
 
 app.use(

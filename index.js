@@ -1,6 +1,6 @@
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
@@ -8,24 +8,11 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 
-// ✅ Fix CORS
-const allowedOrigins = [
-  "http://localhost:4000", // local dev
-  "https://crack-ai-server-zeta.vercel.app", // update this with your deployed frontend if needed
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-  })
-);
+// ✅ Enable CORS for frontend (localhost:4000)
+app.use(cors({
+  origin: "http://localhost:4000",
+  methods: ["GET", "POST"],
+}));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -44,17 +31,83 @@ app.get("/test-ai", async (req, res) => {
       model: "gemini-2.0-flash",
       contents: prompt,
       config: {
-        systemInstruction: `You are a helpful chatbot named Joglu. You were created by MH Parvej, a skilled MERN stack developer who is passionate about learning new technologies every day. Introduce yourself and ask how you can assist.`,
+        systemInstruction: "Hi! I'm Joglu — I was created by MH Parvej. He's a talented developer who keeps improving himself by learning new technologies every day. How can I assist you today?",
       },
     });
 
-    res.send(response.text);
+    res.send(response.text); // Send the AI's response as plain text
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Something went wrong with the AI.");
   }
 });
 
+app.get("/rumor-detector", async (req, res) => {
+  const userPrompt = req.query.prompt;
+
+  if (!userPrompt) {
+    return res.status(400).send("Prompt is required.");
+  }
+
+  const chat = ai.chats.create({
+    model: "gemini-2.0-flash",
+    history: [
+      { role: "user", parts: [{ text: "Man can fly" }] },
+      { role: "model", parts: [{ text: "Rumor percentage: 100%" }] },
+      { role: "user", parts: [{ text: "The moon is made of cheese" }] },
+      { role: "model", parts: [{ text: "Rumor percentage: 95%" }] },
+      { role: "user", parts: [{ text: "Fish can swim" }] },
+      { role: "model", parts: [{ text: "Rumor percentage: 0%" }] },
+    ],
+  });
+
+  try {
+    const stream = await chat.sendMessageStream({ message: userPrompt });
+
+    let fullResponse = "";
+    for await (const chunk of stream) {
+      const text = chunk.text;
+      fullResponse += text;
+      console.log(text);
+      console.log("_".repeat(80));
+    }
+
+    const match = fullResponse.match(/Rumor percentage:\s*(\d+)%/i);
+    const rumorPercentage = match ? `${match[1]}%` : "Unknown";
+
+    res.send({ rumorstatus: rumorPercentage });
+  } catch (err) {
+    console.error("Gemini error:", err);
+    res.status(500).send("Gemini API error");
+  }
+});
+
+app.get("/create-json", async (req, res) => {
+  const userPrompt = req.query.prompt;
+
+  if (!userPrompt) {
+    return res.status(400).send("Prompt is required.");
+  }
+
+  const prompt = `List a few popular cookie recipes using this userPrompt ${userPrompt} JSON schema:
+
+  Recipe = {'recipeName': string}
+  Return: Array<Recipe>`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    console.log(response.text);
+    res.send(response.text); // Send generated JSON as text (optional: parse to real JSON)
+  } catch (err) {
+    console.error("Error in create-json:", err);
+    res.status(500).send("AI JSON creation failed.");
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`✅ AI server is running on http://localhost:${port}`);
 });

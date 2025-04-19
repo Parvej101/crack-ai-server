@@ -8,10 +8,19 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 
-// ✅ Enable CORS for frontend (localhost:4000)
+const whitelist = [
+  "http://localhost:3000",
+  "https://crack-ai-server-zeta.vercel.app"
+];
+
 app.use(cors({
-  origin: "http://localhost:4000",
-  methods: ["GET", "POST"],
+  origin: (origin, callback) => {
+    if (!origin || whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
 }));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

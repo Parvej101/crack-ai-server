@@ -10,7 +10,7 @@ const port = process.env.PORT || 4000;
 
 const whitelist = [
   "http://localhost:3000",
-  "https://crack-ai-server-zeta.vercel.app"
+  "https://parvej101.vercel.app"
 ];
 
 app.use(cors({
